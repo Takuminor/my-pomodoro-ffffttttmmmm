@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ぽこあポケモン ポモドーロタイマー</title>
+    <style>
+        :root {
+            --primary-color: #ff9a9e;
+            --secondary-color: #a18cd1;
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --text-color: #555;
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('aaa.jpg');
+            background-size: cover;
+            background-position: center;
+            z-index: -1;
+        }
+
+        .timer-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 30px;
+            padding: 40px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        #status {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: var(--text-color);
+            padding: 5px 20px;
+            border-radius: 50px;
+            display: inline-block;
+        }
+
+        .status-focus {
+            background-color: #ffe0e0;
+            color: #ff6b6b;
+        }
+
+        .status-break {
+            background-color: #e0f0ff;
+            color: #4dabf7;
+        }
+
+        #timer-display {
+            font-size: 5rem;
+            font-weight: bold;
+            color: var(--text-color);
+            margin: 20px 0;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #start-stop {
+            background-color: #ff9a9e;
+            color: white;
+            min-width: 120px;
+        }
+
+        #reset {
+            background-color: #ddd;
+            color: #777;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="background"></div>
+
+    <div class="timer-container">
+        <div id="status" class="status-focus">Focus Time</div>
+        <div id="timer-display">25:00</div>
+
+        <div class="controls">
+            <button id="start-stop">START</button>
+            <button id="reset">RESET</button>
+        </div>
+    </div>
+
+    <audio id="sound-focus-end" src="進化.mp3"></audio>
+    <audio id="sound-break-end" src="ポケセン.mp3"></audio>
+
+    <script>
+        let timeLeft = 25 * 60;
+        let timerId = null;
+        let isFocusMode = true;
+
+        const display = document.getElementById('timer-display');
+        const statusLabel = document.getElementById('status');
+        const startStopBtn = document.getElementById('start-stop');
+        const resetBtn = document.getElementById('reset');
+
+        // 音声要素の取得
+        const soundFocusEnd = document.getElementById('sound-focus-end');
+        const soundBreakEnd = document.getElementById('sound-break-end');
+
+        function updateDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            display.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function toggleMode() {
+            isFocusMode = !isFocusMode;
+            if (isFocusMode) {
+                timeLeft = 25 * 60;
+                statusLabel.textContent = 'Focus Time';
+                statusLabel.className = 'status-focus';
+            } else {
+                timeLeft = 5 * 60;
+                statusLabel.textContent = 'Break Time';
+                statusLabel.className = 'status-break';
+            }
+            updateDisplay();
+        }
+
+        function startTimer() {
+            if (timerId !== null) return;
+
+            // ブラウザの自動再生制限対策：ユーザーがボタンを押した瞬間に音声をロード
+            soundFocusEnd.load();
+            soundBreakEnd.load();
+
+            timerId = setInterval(() => {
+                timeLeft--;
+                updateDisplay();
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerId);
+                    timerId = null;
+                    startStopBtn.textContent = 'START';
+
+                    // モードに応じて音声を再生
+                    if (isFocusMode) {
+                        soundFocusEnd.play().catch(e => console.log("再生エラー:", e));
+                        alert('集中終了！進化の時です。');
+                    } else {
+                        soundBreakEnd.play().catch(e => console.log("再生エラー:", e));
+                        alert('休憩終了！ポケセンで回復しました。');
+                    }
+
+                    toggleMode();
+                }
+            }, 1000);
+            startStopBtn.textContent = 'STOP';
+        }
+
+        function stopTimer() {
+            clearInterval(timerId);
+            timerId = null;
+            startStopBtn.textContent = 'START';
+        }
+
+        startStopBtn.addEventListener('click', () => {
+            if (timerId === null) {
+                startTimer();
+            } else {
+                stopTimer();
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            stopTimer();
+            isFocusMode = true;
+            timeLeft = 25 * 60;
+            statusLabel.textContent = 'Focus Time';
+            statusLabel.className = 'status-focus';
+            updateDisplay();
+        });
+
+        updateDisplay();
+    </script>
+
+</body>
+
+</html>
